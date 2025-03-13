@@ -1,52 +1,46 @@
+"use client";
+import Link from "next/link";
 import { useState } from "react";
 
 export default function Signup() {
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
-
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const response = await fetch("http://localhost:5000/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await response.json();
-    console.log(data);
-  };
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gradient-to-r from-purple-800 via-blue-600 to-indigo-900">
-      <div className="bg-white/10 backdrop-blur-md shadow-xl rounded-2xl p-10 w-96">
-        <h2 className="text-2xl font-bold text-white text-center mb-6">Sign Up</h2>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            onChange={handleChange}
-            className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400"
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            onChange={handleChange}
-            className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            onChange={handleChange}
-            className="bg-white/20 text-white border border-white/30 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400"
-          />
-          <button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl py-2 font-semibold hover:scale-105 transition">
+    <div className="min-h-screen flex items-center justify-center bg-[#111] text-white">
+      <div className="bg-[#222] p-8 rounded-lg shadow-lg max-w-sm w-full">
+        <h2 className="text-3xl font-bold text-center mb-6">Create an Account</h2>
+        <form>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-300">Email</label>
+            <input
+              type="email"
+              className="w-full px-4 py-2 rounded bg-[#333] text-white focus:ring-2 focus:ring-red-500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+            />
+          </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300">Password</label>
+            <input
+              type="password"
+              className="w-full px-4 py-2 rounded bg-[#333] text-white focus:ring-2 focus:ring-red-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Create a password"
+            />
+          </div>
+          <button className="w-full bg-[#e63946] hover:bg-[#c71f32] py-2 rounded text-white font-semibold transition">
             Sign Up
           </button>
         </form>
+        <p className="mt-4 text-sm text-center">
+          Already have an account?{" "}
+          <Link href="/login" className="text-red-400 hover:underline">
+            Log in
+          </Link>
+        </p>
       </div>
     </div>
   );
