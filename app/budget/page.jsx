@@ -1,132 +1,164 @@
-// "use client";
-// import dynamic from "next/dynamic";
-
-// const PieChart = dynamic(() => import("../components/PieChart"), { ssr: false });
-
-// export default function Budget() {
-//   return (
-//     <div>
-//       <h1>Budget</h1>
-//       <PieChart />
-//     </div>
-//   );
-// }
-
-
 "use client";
-import React, { useState, useEffect } from "react";
-import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { FaArrowLeft } from "react-icons/fa";
-import Link from "next/link";
+import { useState } from "react";
+import { FiPlusCircle, FiEdit, FiTrash2 } from "react-icons/fi";
+import { Dialog } from "@headlessui/react";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
+import { Bar, Pie } from "react-chartjs-2";
+import { Chart, ArcElement, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from "chart.js";
 
-const getExpenses = () => {
-  if (typeof window !== "undefined") {
-    return JSON.parse(localStorage.getItem("expenses")) || [];
-  }
-  return [];
-};
+Chart.register(ArcElement, CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-export default function BudgetInsights() {
-  const [expenses, setExpenses] = useState([]);
-  const [viewMode, setViewMode] = useState("weekly"); // Toggle between weekly & monthly
+export default function BudgetPage() {
+  const [budgets, setBudgets] = useState([]);
+  const [newBudgetName, setNewBudgetName] = useState("");
+  const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState(null);
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [expenseDetails, setExpenseDetails] = useState({ name: "", amount: "", category: "Food" });
 
-  useEffect(() => {
-    setExpenses(getExpenses());
-  }, []);
+  // Create new budget
+  const createBudget = () => {
+    if (newBudgetName.trim() === "") return;
+    setBudgets([...budgets, { name: newBudgetName, expenses: [] }]);
+    setNewBudgetName("");
+    setIsCreateBudgetOpen(false);
+  };
 
-  const totalExpenses = expenses.reduce((acc, { amount }) => acc + amount, 0);
+  // Open dialog to add expense in an existing budget
+  const openAddExpenseDialog = (budget) => {
+    setSelectedBudget(budget);
+    setIsAddExpenseOpen(true);
+  };
 
-  const categoryData = Object.entries(
-    expenses.reduce((acc, { category, amount }) => {
-      acc[category] = (acc[category] || 0) + amount;
-      return acc;
-    }, {})
-  )
-    .map(([category, total]) => ({ name: category, value: total }))
-    .sort((a, b) => b.value - a.value);
+  // Add expense to selected budget
+  const addExpenseToBudget = () => {
+    if (!expenseDetails.name || !expenseDetails.amount) return;
+    const updatedBudgets = budgets.map((budget) =>
+      budget.name === selectedBudget.name
+        ? { ...budget, expenses: [...budget.expenses, { ...expenseDetails, amount: parseFloat(expenseDetails.amount) }] }
+        : budget
+    );
+    setBudgets(updatedBudgets);
+    setExpenseDetails({ name: "", amount: "", category: "Food" });
+    setIsAddExpenseOpen(false);
+  };
 
-  const topCategories = categoryData.slice(0, 3); // Get top 3 spending categories
+  // Sample Chart Data
+  const expenseCategories = ["Food", "Transport", "Shopping", "Entertainment", "Bills"];
+  const categoryData = budgets.flatMap((b) => b.expenses).reduce((acc, e) => {
+    acc[e.category] = (acc[e.category] || 0) + e.amount;
+    return acc;
+  }, {});
 
-  const groupByDate = (dateFunc) =>
-    Object.entries(
-      expenses.reduce((acc, { date, amount }) => {
-        const period = dateFunc(new Date(date));
-        acc[period] = (acc[period] || 0) + amount;
-        return acc;
-      }, {})
-    ).map(([period, total]) => ({ name: period, value: total }));
+  const pieChartData = {
+    labels: Object.keys(categoryData),
+    datasets: [{ data: Object.values(categoryData), backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4CAF50", "#8E44AD"] }],
+  };
 
-  const weeklyData = groupByDate((date) => `Week ${Math.ceil(date.getDate() / 7)}`);
-  const monthlyData = groupByDate((date) => date.toLocaleString("en-GB", { month: "long" }));
+  const barChartData = {
+    labels: budgets.map((b) => b.name),
+    datasets: [{ label: "Total Expenses", data: budgets.map((b) => b.expenses.reduce((sum, e) => sum + e.amount, 0)), backgroundColor: "#3498db" }],
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <Link href="/dashboard">
-        <button className="flex items-center space-x-2 bg-gray-800 p-2 rounded-md">
-          <FaArrowLeft /> <span>Back to Dashboard</span>
-        </button>
-      </Link>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold text-white mb-4">Budget Management</h1>
 
-      <h1 className="text-3xl font-bold text-center mt-4">Budget Insights</h1>
+      {/* Create New Budget Button */}
+      <button onClick={() => setIsCreateBudgetOpen(true)} className="bg-red-600 text-white py-2 px-4 rounded-lg mb-4 hover:bg-red-700">
+        + Create New Budget
+      </button>
 
-      {/* Total Expenses */}
-      <div className="text-center mt-4">
-        <h2 className="text-2xl font-semibold">Total Expenses: ₹{totalExpenses}</h2>
+      {/* Existing Budgets */}
+      {budgets.length > 0 ? (
+        budgets.map((budget) => (
+          <div key={budget.name} className="bg-gray-900 p-4 rounded-lg shadow-md mb-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white">{budget.name}</h2>
+              <button onClick={() => openAddExpenseDialog(budget)} className="text-green-400 hover:text-green-500 flex items-center">
+                <FiPlusCircle className="mr-1" /> Add Expense
+              </button>
+            </div>
+            {/* Expense List */}
+            {budget.expenses.length > 0 ? (
+              <ul className="mt-2">
+                {budget.expenses.map((expense, index) => (
+                  <li key={index} className="text-white text-sm flex justify-between">
+                    <span>{expense.name} ({expense.category})</span>
+                    <span className="font-bold">${expense.amount}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-400 text-sm mt-2">No expenses added yet.</p>
+            )}
+          </div>
+        ))
+      ) : (
+        <p className="text-gray-400">No budgets available. Create one!</p>
+      )}
+
+      {/* Charts */}
+      <div className="grid grid-cols-2 gap-6 mt-6">
+        <div className="bg-gray-900 p-4 rounded-lg shadow-md">
+          <h3 className="text-white text-center mb-2">Category-wise Expenses</h3>
+          <Pie data={pieChartData} />
+        </div>
+        <div className="bg-gray-900 p-4 rounded-lg shadow-md">
+          <h3 className="text-white text-center mb-2">Budget-wise Expenses</h3>
+          <Bar data={barChartData} />
+        </div>
       </div>
 
-      {/* Top 3 Categories */}
-      <div className="mt-4 bg-gray-800 p-4 rounded-lg text-center">
-        <h2 className="text-xl font-semibold mb-2">Top 3 Spending Categories</h2>
-        {topCategories.length > 0 ? (
-          <ul>
-            {topCategories.map((cat, index) => (
-              <li key={index} className="text-lg">
-                {index + 1}. {cat.name}: ₹{cat.value}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No data available</p>
-        )}
-      </div>
+      {/* Create Budget Dialog */}
+      <Dialog open={isCreateBudgetOpen} onClose={() => setIsCreateBudgetOpen(false)} className="fixed inset-0 flex items-center justify-center">
+        <div className="bg-gray-800 p-6 rounded-lg shadow-xl">
+          <Dialog.Title className="text-lg font-bold text-white">Create New Budget</Dialog.Title>
+          <input
+            type="text"
+            placeholder="Budget Name"
+            value={newBudgetName}
+            onChange={(e) => setNewBudgetName(e.target.value)}
+            className="mt-2 w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600"
+          />
+          <div className="flex justify-end mt-4">
+            <button onClick={() => setIsCreateBudgetOpen(false)} className="text-gray-400 mr-2">Cancel</button>
+            <button onClick={createBudget} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Create</button>
+          </div>
+        </div>
+      </Dialog>
 
-      {/* Category-wise Pie Chart */}
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold">Category-wise Spending</h2>
-        <PieChart width={400} height={300}>
-          <Pie dataKey="value" data={categoryData} cx="50%" cy="50%" outerRadius={100} fill="#8884d8" label />
-          <Tooltip />
-        </PieChart>
-      </div>
-
-      {/* Toggle Weekly/Monthly View */}
-      <div className="mt-6 flex justify-center space-x-4">
-        <button
-          className={`p-2 rounded-md ${viewMode === "weekly" ? "bg-blue-500" : "bg-gray-700"}`}
-          onClick={() => setViewMode("weekly")}
-        >
-          Weekly
-        </button>
-        <button
-          className={`p-2 rounded-md ${viewMode === "monthly" ? "bg-blue-500" : "bg-gray-700"}`}
-          onClick={() => setViewMode("monthly")}
-        >
-          Monthly
-        </button>
-      </div>
-
-      {/* Weekly/Monthly Bar Chart */}
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold">{viewMode === "weekly" ? "Weekly" : "Monthly"} Spending Report</h2>
-        <BarChart width={500} height={300} data={viewMode === "weekly" ? weeklyData : monthlyData}>
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="value" fill={viewMode === "weekly" ? "#82ca9d" : "#ffc658"} />
-        </BarChart>
-      </div>
+      {/* Add Expense Dialog */}
+      <Dialog open={isAddExpenseOpen} onClose={() => setIsAddExpenseOpen(false)} className="fixed inset-0 flex items-center justify-center">
+        <div className="bg-gray-800 p-6 rounded-lg shadow-xl">
+          <Dialog.Title className="text-lg font-bold text-white">Add Expense</Dialog.Title>
+          <input
+            type="text"
+            placeholder="Expense Name"
+            value={expenseDetails.name}
+            onChange={(e) => setExpenseDetails({ ...expenseDetails, name: e.target.value })}
+            className="mt-2 w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600"
+          />
+          <input
+            type="number"
+            placeholder="Amount"
+            value={expenseDetails.amount}
+            onChange={(e) => setExpenseDetails({ ...expenseDetails, amount: e.target.value })}
+            className="mt-2 w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+          />
+          <select
+            value={expenseDetails.category}
+            onChange={(e) => setExpenseDetails({ ...expenseDetails, category: e.target.value })}
+            className="mt-2 w-full p-2 rounded bg-gray-700 text-white"
+          >
+            {expenseCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+          </select>
+          <div className="flex justify-end mt-4">
+            <button onClick={addExpenseToBudget} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Add Expense</button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
-
